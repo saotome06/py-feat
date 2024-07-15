@@ -15,21 +15,17 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     pkg-config \
     libhdf5-dev \
+    libopencv-dev \
+    python3-opencv \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# OpenCVをインストール
-RUN apt-get update && apt-get install -y libopencv-dev python3-opencv
-
-RUN pip install tensorflow
-
-RUN pip install tf-keras
-
-# MTCNNをインストール
-RUN pip install mtcnn
-
-# DeepFaceをインストール
-RUN pip install deepface
-
-RUN pip install --no-cache-dir Flask gunicorn matplotlib py-feat
+RUN pip install --no-cache-dir \
+    Flask \
+    gunicorn \
+    matplotlib \
+    py-feat \
+    torch \
+    torchvision \
+    torchaudio
 
 CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 main:app

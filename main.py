@@ -1,16 +1,13 @@
 import os
-from flask import Flask, send_file
+from flask import Flask, request, jsonify
 import torch
 import matplotlib.pyplot as plt
 from feat import Detector
-from feat.utils.io import get_test_data_path
-import cv2
-from mtcnn.mtcnn import MTCNN
-from deepface import DeepFace
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-
-# 検出器の定義
+app.config["UPLOAD_FOLDER"] = "/tmp"
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 最大16MBのファイルサイズ制限
 
 @app.route("/")
 def hello_world():
@@ -22,21 +19,32 @@ def goodbye_world():
     name = os.environ.get("NAME", "World")
     return "Goodbye {}!".format(name)
 
-@app.route("/image")
+@app.route("/image", methods=["POST"])
 def image():
-    # 検出器の定義
-    detector = Detector()
+    if "file" not in request.files:
+        return "ファイルがありません", 400
 
-    # 公式が用意した画像のパスを取得
-    test_data_dir = get_test_data_path()
-    single_face_img_path = os.path.join(test_data_dir, "single_face.jpg")
+    file = request.files["file"]
+    if file.filename == "":
+        return "選択されたファイルがありません", 400
 
-    # 画像を指定して表情認識を実行
-    result = detector.detect_image(single_face_img_path)
-    emotions_str = result.emotions.to_json()
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(filepath)
+        
+        # 検出器の定義
+        detector = Detector()
+        
+        # 画像を指定して表情認識を実行
+        result = detector.detect_image(filepath)
+        emotions_str = result.emotions.to_json()
 
-    print(emotions_str)
-    return emotions_str
+        # 一時ファイルを削除
+        os.remove(filepath)
+
+        print(emotions_str)
+        return emotions_str, 200
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
